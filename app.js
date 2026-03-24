@@ -141,7 +141,9 @@ function buildGanttSVG(tasks, layout, showGroupLabels) {
   const dayMs = 24 * 60 * 60 * 1000;
   const labelWidth = 360;
   const rightPad = 16;
-  /** Compact header + fixed row height so total figure height scales with task count */
+  const labelPadX = 12;
+  const labelTextMaxWidth = labelWidth - labelPadX - 10;
+  /** Compact header; row heights follow wrapped label text */
   const titleY = 22;
   const titleSize = 15;
   const monthLabelY = 34;
@@ -149,11 +151,13 @@ function buildGanttSVG(tasks, layout, showGroupLabels) {
   const ruleY = 42;
   const firstRowTop = 48;
   const bottomPad = 12;
-  const rowHeight = showGroupLabels ? 28 : 18;
   const barH = showGroupLabels ? 14 : 11;
   const barRx = 3;
   const nameSize = 11;
   const groupSize = 9;
+  const nameLineStep = 12;
+  const groupLineStep = 11;
+  const nameGroupGap = 3;
   const gridTop = firstRowTop - 4;
 
   const minDate = floorDate(new Date(Math.min(...tasks.map((t) => t.start.getTime()))));
@@ -161,10 +165,28 @@ function buildGanttSVG(tasks, layout, showGroupLabels) {
   const spanMs = Math.max(dayMs, maxDate - minDate + dayMs);
 
   const width = pageWidth;
-  const bodyHeight = tasks.length * rowHeight;
+  const timelineWidth = width - labelWidth - rightPad;
+
+  const rowLayouts = tasks.map((task) => {
+    const nameLines = wrapLabelText(task.name, labelTextMaxWidth, nameSize, 600);
+    const groupLines = showGroupLabels ? wrapLabelText(task.group, labelTextMaxWidth, groupSize, 500) : [];
+    const rowHeight = measureTaskRowHeight(
+      nameLines.length,
+      groupLines.length,
+      showGroupLabels,
+      barH,
+      nameSize,
+      groupSize,
+      nameLineStep,
+      groupLineStep,
+      nameGroupGap
+    );
+    return { nameLines, groupLines, rowHeight };
+  });
+
+  const bodyHeight = rowLayouts.reduce((sum, r) => sum + r.rowHeight, 0);
   const height = firstRowTop + bodyHeight + bottomPad;
   const gridBottom = height - bottomPad;
-  const timelineWidth = width - labelWidth - rightPad;
 
   const groupColor = new Map();
   tasks.forEach((task) => {
@@ -210,17 +232,19 @@ function buildGanttSVG(tasks, layout, showGroupLabels) {
 
   appendRect(svg, 0, ruleY, width, 1, "#d7c9b7");
 
+  let rowTop = firstRowTop;
   tasks.forEach((task, index) => {
-    const rowTop = firstRowTop + index * rowHeight;
+    const { nameLines, groupLines, rowHeight } = rowLayouts[index];
     if (index % 2 === 0) {
       appendRect(svg, 0, rowTop, width, rowHeight, "rgba(245, 239, 231, 0.46)");
     }
 
+    const nameBaseline0 = rowTop + 4 + nameSize;
+    appendTextLines(svg, labelPadX, nameBaseline0, nameLines, "#2c2822", nameSize, 600, nameLineStep);
+
     if (showGroupLabels) {
-      appendText(svg, 12, rowTop + 10, truncateText(task.name, 54), "#2c2822", nameSize, "start", 600);
-      appendText(svg, 12, rowTop + 21, task.group, "#7a7268", groupSize, "start", 500);
-    } else {
-      appendText(svg, 12, rowTop + 13, truncateText(task.name, 54), "#2c2822", nameSize, "start", 600);
+      const groupBaseline0 = nameBaseline0 + nameLines.length * nameLineStep + nameGroupGap;
+      appendTextLines(svg, labelPadX, groupBaseline0, groupLines, "#7a7268", groupSize, 500, groupLineStep);
     }
 
     const barX = dateToX(task.start, minDate, spanMs, labelWidth, timelineWidth) + 2;
@@ -236,6 +260,8 @@ function buildGanttSVG(tasks, layout, showGroupLabels) {
       const dateSize = 8;
       appendText(svg, barX + 5, barY + barH - 4, dateLabel, "#fff", dateSize, "start", 600);
     }
+
+    rowTop += rowHeight;
   });
 
   return svg;
@@ -288,6 +314,109 @@ function appendText(parent, x, y, content, color, size, anchor = "start", weight
   return text;
 }
 
+function appendTextLines(parent, x, firstBaselineY, lines, color, size, weight, lineStep) {
+  const ns = "http://www.w3.org/2000/svg";
+  const textEl = document.createElementNS(ns, "text");
+  textEl.setAttribute("x", x);
+  textEl.setAttribute("y", firstBaselineY);
+  textEl.setAttribute("fill", color);
+  textEl.setAttribute("font-size", size);
+  textEl.setAttribute("font-family", "Avenir Next, Segoe UI, sans-serif");
+  textEl.setAttribute("font-weight", weight);
+  textEl.setAttribute("text-anchor", "start");
+  lines.forEach((line, i) => {
+    const tspan = document.createElementNS(ns, "tspan");
+    tspan.setAttribute("x", x);
+    if (i > 0) {
+      tspan.setAttribute("dy", lineStep);
+    }
+    tspan.textContent = line;
+    textEl.appendChild(tspan);
+  });
+  parent.appendChild(textEl);
+  return textEl;
+}
+
+let _measureCanvas;
+function measureTextWidthPx(text, fontSize, fontWeight) {
+  if (!_measureCanvas) {
+    _measureCanvas = document.createElement("canvas");
+  }
+  const ctx = _measureCanvas.getContext("2d");
+  if (!ctx) {
+    return text.length * fontSize * 0.52;
+  }
+  ctx.font = `${fontWeight} ${fontSize}px "Avenir Next", "Segoe UI", sans-serif`;
+  return ctx.measureText(text).width;
+}
+
+function wrapLabelText(text, maxWidthPx, fontSize, fontWeight) {
+  const trimmed = (text || "").trim();
+  if (!trimmed) {
+    return [""];
+  }
+  const words = trimmed.split(/\s+/);
+  const lines = [];
+  let line = "";
+
+  for (const word of words) {
+    const attempt = line ? `${line} ${word}` : word;
+    if (measureTextWidthPx(attempt, fontSize, fontWeight) <= maxWidthPx) {
+      line = attempt;
+      continue;
+    }
+    if (line) {
+      lines.push(line);
+      line = "";
+    }
+    if (measureTextWidthPx(word, fontSize, fontWeight) <= maxWidthPx) {
+      line = word;
+    } else {
+      let chunk = "";
+      for (let i = 0; i < word.length; i++) {
+        const next = chunk + word[i];
+        if (measureTextWidthPx(next, fontSize, fontWeight) <= maxWidthPx) {
+          chunk = next;
+        } else {
+          if (chunk) {
+            lines.push(chunk);
+          }
+          chunk = word[i];
+        }
+      }
+      line = chunk;
+    }
+  }
+  if (line) {
+    lines.push(line);
+  }
+  return lines.length ? lines : [""];
+}
+
+function measureTaskRowHeight(
+  nameLineCount,
+  groupLineCount,
+  showGroupLabels,
+  barH,
+  nameSize,
+  groupSize,
+  nameLineStep,
+  groupLineStep,
+  nameGroupGap
+) {
+  const nameBaseline0 = 4 + nameSize;
+  let lastBaseline = nameBaseline0 + (nameLineCount - 1) * nameLineStep;
+  let textBottomBelowRowTop;
+  if (showGroupLabels && groupLineCount > 0) {
+    const groupBaseline0 = nameBaseline0 + nameLineCount * nameLineStep + nameGroupGap;
+    lastBaseline = groupBaseline0 + (groupLineCount - 1) * groupLineStep;
+    textBottomBelowRowTop = lastBaseline + groupSize + 4;
+  } else {
+    textBottomBelowRowTop = lastBaseline + nameSize + 4;
+  }
+  return Math.max(barH + 8, textBottomBelowRowTop + 5);
+}
+
 function floorDate(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
@@ -324,13 +453,6 @@ function formatMonth(date, compact = false) {
 
 function formatShortDate(date) {
   return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
-}
-
-function truncateText(text, maxChars) {
-  if (text.length <= maxChars) {
-    return text;
-  }
-  return `${text.slice(0, maxChars - 1)}...`;
 }
 
 function setStatus(message, isError = false) {
