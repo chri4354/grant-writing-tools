@@ -137,22 +137,33 @@ function renderChartFromInput() {
 }
 
 function buildGanttSVG(tasks, layout, showGroupLabels) {
-  const { pageWidth, pageHeight } = layout;
+  const { pageWidth } = layout;
   const dayMs = 24 * 60 * 60 * 1000;
-  const labelWidth = 390;
-  const topPad = 92;
-  const bottomPad = 28;
-  const rightPad = 20;
-  const usableHeight = pageHeight - topPad - bottomPad;
-  const minRow = showGroupLabels ? 36 : 26;
-  const rowHeight = Math.max(minRow, Math.floor(usableHeight / tasks.length));
+  const labelWidth = 360;
+  const rightPad = 16;
+  /** Compact header + fixed row height so total figure height scales with task count */
+  const titleY = 22;
+  const titleSize = 15;
+  const monthLabelY = 34;
+  const monthLabelSize = 9;
+  const ruleY = 42;
+  const firstRowTop = 48;
+  const bottomPad = 12;
+  const rowHeight = showGroupLabels ? 28 : 18;
+  const barH = showGroupLabels ? 14 : 11;
+  const barRx = 3;
+  const nameSize = 11;
+  const groupSize = 9;
+  const gridTop = firstRowTop - 4;
 
   const minDate = floorDate(new Date(Math.min(...tasks.map((t) => t.start.getTime()))));
   const maxDate = floorDate(new Date(Math.max(...tasks.map((t) => t.end.getTime()))));
   const spanMs = Math.max(dayMs, maxDate - minDate + dayMs);
 
   const width = pageWidth;
-  const height = Math.min(pageHeight, topPad + tasks.length * rowHeight + bottomPad);
+  const bodyHeight = tasks.length * rowHeight;
+  const height = firstRowTop + bodyHeight + bottomPad;
+  const gridBottom = height - bottomPad;
   const timelineWidth = width - labelWidth - rightPad;
 
   const groupColor = new Map();
@@ -185,48 +196,47 @@ function buildGanttSVG(tasks, layout, showGroupLabels) {
   svg.appendChild(defs);
 
   appendRect(svg, 0, 0, width, height, "url(#bg)");
+  appendText(svg, 12, titleY, "Project Gantt Chart", "#1f1d1a", titleSize, "start", 700);
 
   const ticks = buildMonthTicks(minDate, maxDate);
   const tickSpacing = timelineWidth / Math.max(1, ticks.length - 1);
-  const compactMonthLabels = tickSpacing < 56;
+  const compactMonthLabels = tickSpacing < 48;
   ticks.forEach((tick) => {
     const x = dateToX(tick, minDate, spanMs, labelWidth, timelineWidth);
     const isQuarter = tick.getMonth() % 3 === 0;
-    appendLine(svg, x, topPad - 16, x, height - bottomPad + 6, isQuarter ? "#d0c2af" : "#ece4d8", isQuarter ? 1.5 : 1);
-    appendText(svg, x + 2, 42, formatMonth(tick, compactMonthLabels), "#6f675d", 12, "start", 600);
+    appendLine(svg, x, gridTop, x, gridBottom, isQuarter ? "#d0c2af" : "#ece4d8", isQuarter ? 1.5 : 1);
+    appendText(svg, x + 2, monthLabelY, formatMonth(tick, compactMonthLabels), "#6f675d", monthLabelSize, "start", 600);
   });
 
-  appendRect(svg, 0, topPad - 16, width, 1, "#d7c9b7");
+  appendRect(svg, 0, ruleY, width, 1, "#d7c9b7");
 
   tasks.forEach((task, index) => {
-    const y = topPad + index * rowHeight;
+    const rowTop = firstRowTop + index * rowHeight;
     if (index % 2 === 0) {
-      appendRect(svg, 0, y - 18, width, rowHeight, "rgba(245, 239, 231, 0.46)");
+      appendRect(svg, 0, rowTop, width, rowHeight, "rgba(245, 239, 231, 0.46)");
     }
 
     if (showGroupLabels) {
-      appendText(svg, 14, y + 1, truncateText(task.name, 52), "#2c2822", 13, "start", 600);
-      appendText(svg, 14, y + 18, task.group, "#7a7268", 11, "start", 500);
+      appendText(svg, 12, rowTop + 10, truncateText(task.name, 54), "#2c2822", nameSize, "start", 600);
+      appendText(svg, 12, rowTop + 21, task.group, "#7a7268", groupSize, "start", 500);
     } else {
-      const midY = y - 18 + Math.floor(rowHeight / 2);
-      appendText(svg, 14, midY + 5, truncateText(task.name, 52), "#2c2822", 13, "start", 600);
+      appendText(svg, 12, rowTop + 13, truncateText(task.name, 54), "#2c2822", nameSize, "start", 600);
     }
 
     const barX = dateToX(task.start, minDate, spanMs, labelWidth, timelineWidth) + 2;
     const barEndX = dateToX(addDays(task.end, 1), minDate, spanMs, labelWidth, timelineWidth) - 2;
-    const barW = Math.max(8, barEndX - barX);
-    const barY = showGroupLabels ? y - 11 : y - 18 + Math.floor(rowHeight / 2) - 10;
+    const barW = Math.max(6, barEndX - barX);
+    const barY = rowTop + Math.floor((rowHeight - barH) / 2);
     const color = groupColor.get(task.group);
 
-    appendRoundedRect(svg, barX, barY, barW, 20, 6, color, 0.92);
+    appendRoundedRect(svg, barX, barY, barW, barH, barRx, color, 0.92);
 
-    if (barW > 150) {
-      const dateLabel = `${formatShortDate(task.start)} - ${formatShortDate(task.end)}`;
-      appendText(svg, barX + 7, barY + 14, dateLabel, "#fff", 10, "start", 600);
+    if (barW > 128) {
+      const dateLabel = `${formatShortDate(task.start)} – ${formatShortDate(task.end)}`;
+      const dateSize = 8;
+      appendText(svg, barX + 5, barY + barH - 4, dateLabel, "#fff", dateSize, "start", 600);
     }
   });
-
-  appendText(svg, 14, 32, "Project Gantt Chart", "#1f1d1a", 20, "start", 700);
 
   return svg;
 }
@@ -326,6 +336,17 @@ function setStatus(message, isError = false) {
   statusMessage.classList.toggle("error", isError);
 }
 
+/** ~300 DPI along the figure width; height scales with SVG aspect ratio */
+function pngPixelSizeForSvg(svg, layout) {
+  const w = parseFloat(svg.getAttribute("width")) || layout.pageWidth;
+  const h = parseFloat(svg.getAttribute("height")) || A4_LONG_PX;
+  const scale = layout.exportWidth / layout.pageWidth;
+  return {
+    width: Math.max(1, Math.round(w * scale)),
+    height: Math.max(1, Math.round(h * scale))
+  };
+}
+
 async function downloadPNG() {
   const svg = chartHost.querySelector("svg");
   if (!svg) {
@@ -333,22 +354,23 @@ async function downloadPNG() {
     return;
   }
 
-  const { exportWidth, exportHeight, orientationLabel } = getPageLayout();
+  const layout = getPageLayout();
+  const { width: exportW, height: exportH } = pngPixelSizeForSvg(svg, layout);
   const serializer = new XMLSerializer();
   const content = serializer.serializeToString(svg);
   const svgBlob = new Blob([content], { type: "image/svg+xml;charset=utf-8" });
 
   try {
-    const pngBlob = await svgToPngBlob(svgBlob, exportWidth, exportHeight);
+    const pngBlob = await svgToPngBlob(svgBlob, exportW, exportH);
     const url = URL.createObjectURL(pngBlob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `gantt-chart-a4-${orientationLabel}-300dpi.png`;
+    a.download = `gantt-chart-a4-${layout.orientationLabel}-300dpi.png`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    setStatus(`High-resolution PNG downloaded (A4 ${orientationLabel}, 300 DPI).`);
+    setStatus(`PNG downloaded (${exportW}×${exportH}px, ~300 DPI width, A4 ${layout.orientationLabel}).`);
   } catch (error) {
     setStatus("Could not export PNG.", true);
   }
@@ -371,8 +393,9 @@ async function copyImageToClipboard() {
   const svgBlob = new Blob([content], { type: "image/svg+xml;charset=utf-8" });
 
   try {
-    const { pageWidth, pageHeight } = getPageLayout();
-    const pngBlob = await svgToPngBlob(svgBlob, pageWidth * 2, pageHeight * 2);
+    const w = parseFloat(svg.getAttribute("width")) || A4_SHORT_PX;
+    const h = parseFloat(svg.getAttribute("height")) || A4_LONG_PX;
+    const pngBlob = await svgToPngBlob(svgBlob, Math.round(w * 2), Math.round(h * 2));
     await navigator.clipboard.write([new ClipboardItem({ "image/png": pngBlob })]);
     setStatus("Chart copied to clipboard.");
   } catch (error) {
