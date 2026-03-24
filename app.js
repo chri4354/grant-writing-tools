@@ -20,12 +20,15 @@ Deploy prototype | 2027-05-01 | 2027-06-30 | Months 11-12
 Prepare documentation, and dissemination materials | 2027-05-01 | 2027-06-30 | Months 11-12`;
 
 const COLOR_POOL = ["#cb5a3b", "#38618c", "#55715e", "#9b6b41", "#885a89", "#468373"];
-const A4_WIDTH = 794;
-const A4_HEIGHT = 1123;
-const EXPORT_PNG_WIDTH = 2480;
-const EXPORT_PNG_HEIGHT = 3508;
+/** CSS pixels at ~96dpi: A4 short edge × long edge */
+const A4_SHORT_PX = 794;
+const A4_LONG_PX = 1123;
+/** ~300dpi export: A4 short × long */
+const EXPORT_A4_SHORT = 2480;
+const EXPORT_A4_LONG = 3508;
 
 const input = document.getElementById("timelineInput");
+const pageOrientation = document.getElementById("pageOrientation");
 const renderButton = document.getElementById("renderButton");
 const exampleButton = document.getElementById("exampleButton");
 const copyButton = document.getElementById("copyButton");
@@ -37,6 +40,7 @@ input.value = DEFAULT_INPUT;
 renderChartFromInput();
 
 renderButton.addEventListener("click", renderChartFromInput);
+pageOrientation.addEventListener("change", renderChartFromInput);
 exampleButton.addEventListener("click", () => {
   input.value = DEFAULT_INPUT;
   renderChartFromInput();
@@ -99,10 +103,30 @@ function parseDate(value, line, label) {
   return date;
 }
 
+function getPageLayout() {
+  const landscape = pageOrientation.value === "landscape";
+  if (landscape) {
+    return {
+      pageWidth: A4_LONG_PX,
+      pageHeight: A4_SHORT_PX,
+      exportWidth: EXPORT_A4_LONG,
+      exportHeight: EXPORT_A4_SHORT,
+      orientationLabel: "landscape"
+    };
+  }
+  return {
+    pageWidth: A4_SHORT_PX,
+    pageHeight: A4_LONG_PX,
+    exportWidth: EXPORT_A4_SHORT,
+    exportHeight: EXPORT_A4_LONG,
+    orientationLabel: "portrait"
+  };
+}
+
 function renderChartFromInput() {
   try {
     const tasks = parseTimeline(input.value);
-    const svg = buildGanttSVG(tasks);
+    const svg = buildGanttSVG(tasks, getPageLayout());
     chartHost.replaceChildren(svg);
     setStatus(`Click the chart (or Copy Image) to copy.`);
   } catch (err) {
@@ -110,21 +134,22 @@ function renderChartFromInput() {
   }
 }
 
-function buildGanttSVG(tasks) {
+function buildGanttSVG(tasks, layout) {
+  const { pageWidth, pageHeight } = layout;
   const dayMs = 24 * 60 * 60 * 1000;
   const labelWidth = 390;
   const topPad = 92;
   const bottomPad = 28;
   const rightPad = 20;
-  const usableHeight = A4_HEIGHT - topPad - bottomPad;
+  const usableHeight = pageHeight - topPad - bottomPad;
   const rowHeight = Math.max(36, Math.floor(usableHeight / tasks.length));
 
   const minDate = floorDate(new Date(Math.min(...tasks.map((t) => t.start.getTime()))));
   const maxDate = floorDate(new Date(Math.max(...tasks.map((t) => t.end.getTime()))));
   const spanMs = Math.max(dayMs, maxDate - minDate + dayMs);
 
-  const width = A4_WIDTH;
-  const height = Math.min(A4_HEIGHT, topPad + tasks.length * rowHeight + bottomPad);
+  const width = pageWidth;
+  const height = Math.min(pageHeight, topPad + tasks.length * rowHeight + bottomPad);
   const timelineWidth = width - labelWidth - rightPad;
 
   const groupColor = new Map();
@@ -297,21 +322,22 @@ async function downloadPNG() {
     return;
   }
 
+  const { exportWidth, exportHeight, orientationLabel } = getPageLayout();
   const serializer = new XMLSerializer();
   const content = serializer.serializeToString(svg);
   const svgBlob = new Blob([content], { type: "image/svg+xml;charset=utf-8" });
 
   try {
-    const pngBlob = await svgToPngBlob(svgBlob, EXPORT_PNG_WIDTH, EXPORT_PNG_HEIGHT);
+    const pngBlob = await svgToPngBlob(svgBlob, exportWidth, exportHeight);
     const url = URL.createObjectURL(pngBlob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "gantt-chart-a4-300dpi.png";
+    a.download = `gantt-chart-a4-${orientationLabel}-300dpi.png`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    setStatus("High-resolution PNG downloaded (A4 300 DPI).");
+    setStatus(`High-resolution PNG downloaded (A4 ${orientationLabel}, 300 DPI).`);
   } catch (error) {
     setStatus("Could not export PNG.", true);
   }
@@ -334,7 +360,8 @@ async function copyImageToClipboard() {
   const svgBlob = new Blob([content], { type: "image/svg+xml;charset=utf-8" });
 
   try {
-    const pngBlob = await svgToPngBlob(svgBlob, A4_WIDTH * 2, A4_HEIGHT * 2);
+    const { pageWidth, pageHeight } = getPageLayout();
+    const pngBlob = await svgToPngBlob(svgBlob, pageWidth * 2, pageHeight * 2);
     await navigator.clipboard.write([new ClipboardItem({ "image/png": pngBlob })]);
     setStatus("Chart copied to clipboard.");
   } catch (error) {
