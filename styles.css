@@ -1,0 +1,161 @@
+:root {
+  --bg: #f5f3ef;
+  --paper: #fefdf9;
+  --ink: #1f1d1a;
+  --muted: #746e66;
+  --line: #e0d7ca;
+  --accent: #cb5a3b;
+  --accent-2: #38618c;
+  --accent-3: #55715e;
+  --shadow: 0 12px 30px rgba(23, 18, 11, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 90% 10%, rgba(203, 90, 59, 0.14), transparent 42%),
+    radial-gradient(circle at 10% 90%, rgba(56, 97, 140, 0.12), transparent 48%),
+    var(--bg);
+  min-height: 100vh;
+}
+
+.app-shell {
+  max-width: 1280px;
+  margin: 32px auto;
+  padding: 0 20px;
+  display: grid;
+  grid-template-columns: minmax(320px, 440px) minmax(640px, 1fr);
+  gap: 20px;
+}
+
+.panel {
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.85), rgba(254, 253, 249, 0.96));
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+
+.input-panel {
+  padding: 22px;
+}
+
+.input-panel h1 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.input-panel p {
+  margin: 10px 0 8px;
+  color: var(--muted);
+}
+
+.input-panel code {
+  display: block;
+  background: #f1ece4;
+  border: 1px solid #e4d8c8;
+  border-radius: 10px;
+  padding: 8px;
+  font-size: 0.87rem;
+}
+
+textarea {
+  width: 100%;
+  margin-top: 14px;
+  min-height: 360px;
+  resize: vertical;
+  border: 1px solid #d9ccbb;
+  border-radius: 14px;
+  padding: 14px;
+  font: 500 0.95rem/1.5 "SFMono-Regular", "Consolas", monospace;
+  color: #3b362f;
+  background: #fffefb;
+}
+
+textarea:focus {
+  outline: 3px solid rgba(203, 90, 59, 0.24);
+  border-color: #cb5a3b;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+button {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font: 600 0.92rem "Avenir Next", "Segoe UI", sans-serif;
+  cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  filter: brightness(0.97);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+#renderButton {
+  color: #fff;
+  background: var(--accent);
+}
+
+button.ghost {
+  border: 1px solid #ccbda9;
+  color: #3f382f;
+  background: #f8f3eb;
+}
+
+#statusMessage {
+  min-height: 1.25rem;
+  margin: 12px 0 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+#statusMessage.error {
+  color: #b63131;
+}
+
+.chart-panel {
+  padding: 12px;
+  overflow: auto;
+}
+
+.chart-host {
+  border-radius: 12px;
+  border: 1px solid #e4d8c8;
+  background: #fff;
+  min-height: 560px;
+  overflow: auto;
+}
+
+svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  cursor: copy;
+}
+
+@media (max-width: 1080px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  textarea {
+    min-height: 240px;
+  }
+}

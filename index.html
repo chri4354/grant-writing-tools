@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Timeline to Gantt</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="panel input-panel">
+        <header>
+          <h1>Text Timeline to Gantt Chart</h1>
+          <p>Write one task per line using this format:</p>
+          <code>Task Name | YYYY-MM-DD | YYYY-MM-DD | Optional Group</code>
+        </header>
+        <textarea id="timelineInput" spellcheck="false" aria-label="Timeline input"></textarea>
+        <div class="controls">
+          <button id="renderButton" type="button">Render Chart</button>
+          <button id="exampleButton" type="button" class="ghost">Load Example</button>
+          <button id="copyButton" type="button" class="ghost">Copy Image</button>
+          <button id="downloadButton" type="button" class="ghost">Download PNG (Hi-Res)</button>
+        </div>
+        <p id="statusMessage" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="panel chart-panel">
+        <div id="chartHost" class="chart-host" aria-label="Gantt chart output"></div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
