@@ -29,6 +29,7 @@ const EXPORT_A4_LONG = 3508;
 
 const input = document.getElementById("timelineInput");
 const pageOrientation = document.getElementById("pageOrientation");
+const showGroupsCheckbox = document.getElementById("showGroups");
 const renderButton = document.getElementById("renderButton");
 const exampleButton = document.getElementById("exampleButton");
 const copyButton = document.getElementById("copyButton");
@@ -41,6 +42,7 @@ renderChartFromInput();
 
 renderButton.addEventListener("click", renderChartFromInput);
 pageOrientation.addEventListener("change", renderChartFromInput);
+showGroupsCheckbox.addEventListener("change", renderChartFromInput);
 exampleButton.addEventListener("click", () => {
   input.value = DEFAULT_INPUT;
   renderChartFromInput();
@@ -126,7 +128,7 @@ function getPageLayout() {
 function renderChartFromInput() {
   try {
     const tasks = parseTimeline(input.value);
-    const svg = buildGanttSVG(tasks, getPageLayout());
+    const svg = buildGanttSVG(tasks, getPageLayout(), showGroupsCheckbox.checked);
     chartHost.replaceChildren(svg);
     setStatus(`Click the chart (or Copy Image) to copy.`);
   } catch (err) {
@@ -134,7 +136,7 @@ function renderChartFromInput() {
   }
 }
 
-function buildGanttSVG(tasks, layout) {
+function buildGanttSVG(tasks, layout, showGroupLabels) {
   const { pageWidth, pageHeight } = layout;
   const dayMs = 24 * 60 * 60 * 1000;
   const labelWidth = 390;
@@ -142,7 +144,8 @@ function buildGanttSVG(tasks, layout) {
   const bottomPad = 28;
   const rightPad = 20;
   const usableHeight = pageHeight - topPad - bottomPad;
-  const rowHeight = Math.max(36, Math.floor(usableHeight / tasks.length));
+  const minRow = showGroupLabels ? 36 : 26;
+  const rowHeight = Math.max(minRow, Math.floor(usableHeight / tasks.length));
 
   const minDate = floorDate(new Date(Math.min(...tasks.map((t) => t.start.getTime()))));
   const maxDate = floorDate(new Date(Math.max(...tasks.map((t) => t.end.getTime()))));
@@ -165,7 +168,10 @@ function buildGanttSVG(tasks, layout) {
   svg.setAttribute("width", width);
   svg.setAttribute("height", height);
   svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", "Generated Gantt chart");
+  svg.setAttribute(
+    "aria-label",
+    showGroupLabels ? "Generated Gantt chart" : "Generated Gantt chart without group labels"
+  );
 
   const defs = document.createElementNS(ns, "defs");
   const bgGrad = document.createElementNS(ns, "linearGradient");
@@ -198,13 +204,18 @@ function buildGanttSVG(tasks, layout) {
       appendRect(svg, 0, y - 18, width, rowHeight, "rgba(245, 239, 231, 0.46)");
     }
 
-    appendText(svg, 14, y + 1, truncateText(task.name, 52), "#2c2822", 13, "start", 600);
-    appendText(svg, 14, y + 18, task.group, "#7a7268", 11, "start", 500);
+    if (showGroupLabels) {
+      appendText(svg, 14, y + 1, truncateText(task.name, 52), "#2c2822", 13, "start", 600);
+      appendText(svg, 14, y + 18, task.group, "#7a7268", 11, "start", 500);
+    } else {
+      const midY = y - 18 + Math.floor(rowHeight / 2);
+      appendText(svg, 14, midY + 5, truncateText(task.name, 52), "#2c2822", 13, "start", 600);
+    }
 
     const barX = dateToX(task.start, minDate, spanMs, labelWidth, timelineWidth) + 2;
     const barEndX = dateToX(addDays(task.end, 1), minDate, spanMs, labelWidth, timelineWidth) - 2;
     const barW = Math.max(8, barEndX - barX);
-    const barY = y - 11;
+    const barY = showGroupLabels ? y - 11 : y - 18 + Math.floor(rowHeight / 2) - 10;
     const color = groupColor.get(task.group);
 
     appendRoundedRect(svg, barX, barY, barW, 20, 6, color, 0.92);

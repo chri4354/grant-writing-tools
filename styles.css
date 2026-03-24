@@ -125,6 +125,19 @@ textarea:focus {
   border-color: #cb5a3b;
 }
 
+.control-checkbox {
+  cursor: pointer;
+  user-select: none;
+}
+
+.control-checkbox input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
 button {
   appearance: none;
   border: 0;
