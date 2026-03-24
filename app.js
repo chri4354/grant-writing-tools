@@ -294,13 +294,11 @@ function buildGanttSVG(tasks, layout, showGroupLabels, tableShades) {
   appendText(svg, 12, titleY, "Project Gantt Chart", "#1f1d1a", titleSize, "start", 700);
 
   const ticks = buildMonthTicks(minDate, maxDate);
-  const tickSpacing = timelineWidth / Math.max(1, ticks.length - 1);
-  const compactMonthLabels = tickSpacing < 48;
   ticks.forEach((tick) => {
     const x = dateToX(tick, minDate, spanMs, labelWidth, timelineWidth);
     const isQuarter = tick.getMonth() % 3 === 0;
     appendLine(svg, x, gridTop, x, gridBottom, isQuarter ? "#d0c2af" : "#ece4d8", isQuarter ? 1.5 : 1);
-    appendText(svg, x + 2, monthLabelY, formatMonth(tick, compactMonthLabels), "#6f675d", monthLabelSize, "start", 600);
+    appendText(svg, x + 2, monthLabelY, formatMonth(tick), "#6f675d", monthLabelSize, "start", 600);
   });
 
   appendRect(svg, 0, ruleY, width, 1, "#d7c9b7");
@@ -511,11 +509,9 @@ function buildMonthTicks(minDate, maxDate) {
   return ticks;
 }
 
-function formatMonth(date, compact = false) {
+/** Always short month + two-digit year, e.g. Jul '26 */
+function formatMonth(date) {
   const month = date.toLocaleDateString(undefined, { month: "short" });
-  if (compact) {
-    return month;
-  }
   const yy = String(date.getFullYear()).slice(-2);
   return `${month} '${yy}`;
 }
