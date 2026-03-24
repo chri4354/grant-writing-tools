@@ -281,6 +281,16 @@ function buildGanttSVG(tasks, layout, showGroupLabels, tableShades) {
   );
 
   appendRect(svg, 0, 0, width, height, shadeA);
+
+  let bandTop = firstRowTop;
+  tasks.forEach((task, index) => {
+    const { rowHeight } = rowLayouts[index];
+    if (index % 2 === 0) {
+      appendRect(svg, 0, bandTop, width, rowHeight, shadeB);
+    }
+    bandTop += rowHeight;
+  });
+
   appendText(svg, 12, titleY, "Project Gantt Chart", "#1f1d1a", titleSize, "start", 700);
 
   const ticks = buildMonthTicks(minDate, maxDate);
@@ -298,9 +308,6 @@ function buildGanttSVG(tasks, layout, showGroupLabels, tableShades) {
   let rowTop = firstRowTop;
   tasks.forEach((task, index) => {
     const { nameLines, groupLines, rowHeight } = rowLayouts[index];
-    if (index % 2 === 0) {
-      appendRect(svg, 0, rowTop, width, rowHeight, shadeB);
-    }
 
     const nameBaseline0 = rowTop + 4 + nameSize;
     appendTextLines(svg, labelPadX, nameBaseline0, nameLines, "#2c2822", nameSize, 600, nameLineStep);
