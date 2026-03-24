@@ -39,6 +39,7 @@ const tableHex1 = document.getElementById("tableHex1");
 const tableHex2 = document.getElementById("tableHex2");
 const tableColor1 = document.getElementById("tableColor1");
 const tableColor2 = document.getElementById("tableColor2");
+const fontScaleSelect = document.getElementById("fontScale");
 const renderButton = document.getElementById("renderButton");
 const exampleButton = document.getElementById("exampleButton");
 const copyButton = document.getElementById("copyButton");
@@ -70,6 +71,7 @@ function syncTableHexFromColor(which) {
 
 renderButton.addEventListener("click", renderChartFromInput);
 pageOrientation.addEventListener("change", renderChartFromInput);
+fontScaleSelect.addEventListener("change", renderChartFromInput);
 showGroupsCheckbox.addEventListener("change", renderChartFromInput);
 tableHex1.addEventListener("input", () => {
   syncTableColorFromHex(1);
@@ -178,6 +180,18 @@ function getTableShades() {
   return [a || DEFAULT_TABLE_SHADE_1, b || DEFAULT_TABLE_SHADE_2];
 }
 
+function clampFontScale(v) {
+  const n = typeof v === "number" ? v : parseFloat(String(v), 10);
+  if (!Number.isFinite(n)) {
+    return 1;
+  }
+  return Math.min(1.45, Math.max(0.78, n));
+}
+
+function getFontScale() {
+  return clampFontScale(parseFloat(fontScaleSelect.value, 10));
+}
+
 function getPageLayout() {
   const landscape = pageOrientation.value === "landscape";
   if (landscape) {
@@ -201,7 +215,13 @@ function getPageLayout() {
 function renderChartFromInput() {
   try {
     const tasks = parseTimeline(input.value);
-    const svg = buildGanttSVG(tasks, getPageLayout(), showGroupsCheckbox.checked, getTableShades());
+    const svg = buildGanttSVG(
+      tasks,
+      getPageLayout(),
+      showGroupsCheckbox.checked,
+      getTableShades(),
+      getFontScale()
+    );
     chartHost.replaceChildren(svg);
     setStatus(`Click the chart (or Copy Image) to copy.`);
   } catch (err) {
@@ -209,30 +229,32 @@ function renderChartFromInput() {
   }
 }
 
-function buildGanttSVG(tasks, layout, showGroupLabels, tableShades) {
+function buildGanttSVG(tasks, layout, showGroupLabels, tableShades, fontScale = 1) {
   const [shadeA, shadeB] = tableShades;
+  const s = clampFontScale(fontScale);
   const { pageWidth } = layout;
   const dayMs = 24 * 60 * 60 * 1000;
   const labelWidth = 360;
   const rightPad = 16;
-  const labelPadX = 12;
+  const labelPadX = Math.max(8, Math.round(12 * s));
   const labelTextMaxWidth = labelWidth - labelPadX - 10;
-  /** Compact header; row heights follow wrapped label text */
-  const titleY = 22;
-  const titleSize = 15;
-  const monthLabelY = 34;
-  const monthLabelSize = 9;
-  const ruleY = 42;
-  const firstRowTop = 48;
-  const bottomPad = 12;
-  const barH = showGroupLabels ? 14 : 11;
-  const barRx = 3;
-  const nameSize = 11;
-  const groupSize = 9;
-  const nameLineStep = 12;
-  const groupLineStep = 11;
-  const nameGroupGap = 3;
-  const gridTop = firstRowTop - 4;
+  /** Typography and header positions scale together */
+  const titleSize = Math.max(11, Math.round(15 * s));
+  const titleY = Math.max(16, Math.round(22 * s));
+  const monthLabelSize = Math.max(7, Math.round(9 * s));
+  const monthLabelY = titleY + Math.round(12 * s);
+  const ruleY = monthLabelY + Math.round(8 * s);
+  const firstRowTop = ruleY + Math.round(6 * s);
+  const bottomPad = Math.max(10, Math.round(12 * s));
+  const barH = showGroupLabels ? Math.max(9, Math.round(14 * s)) : Math.max(7, Math.round(11 * s));
+  const barRx = Math.max(2, Math.round(3 * s));
+  const nameSize = Math.max(8, Math.round(11 * s));
+  const groupSize = Math.max(7, Math.round(9 * s));
+  const nameLineStep = Math.max(nameSize + 2, Math.round(12 * s));
+  const groupLineStep = Math.max(groupSize + 2, Math.round(11 * s));
+  const nameGroupGap = Math.max(2, Math.round(3 * s));
+  const gridTop = firstRowTop - Math.max(3, Math.round(4 * s));
+  const nameTopPad = Math.max(3, Math.round(4 * s));
 
   const minDate = floorDate(new Date(Math.min(...tasks.map((t) => t.start.getTime()))));
   const maxDate = floorDate(new Date(Math.max(...tasks.map((t) => t.end.getTime()))));
@@ -253,7 +275,8 @@ function buildGanttSVG(tasks, layout, showGroupLabels, tableShades) {
       groupSize,
       nameLineStep,
       groupLineStep,
-      nameGroupGap
+      nameGroupGap,
+      nameTopPad
     );
     return { nameLines, groupLines, rowHeight };
   });
@@ -307,7 +330,7 @@ function buildGanttSVG(tasks, layout, showGroupLabels, tableShades) {
   tasks.forEach((task, index) => {
     const { nameLines, groupLines, rowHeight } = rowLayouts[index];
 
-    const nameBaseline0 = rowTop + 4 + nameSize;
+    const nameBaseline0 = rowTop + nameTopPad + nameSize;
     appendTextLines(svg, labelPadX, nameBaseline0, nameLines, "#2c2822", nameSize, 600, nameLineStep);
 
     if (showGroupLabels) {
@@ -325,8 +348,8 @@ function buildGanttSVG(tasks, layout, showGroupLabels, tableShades) {
 
     if (barW > 128) {
       const dateLabel = `${formatShortDate(task.start)} – ${formatShortDate(task.end)}`;
-      const dateSize = 8;
-      appendText(svg, barX + 5, barY + barH - 4, dateLabel, "#fff", dateSize, "start", 600);
+      const dateSize = Math.max(6, Math.round(8 * s));
+      appendText(svg, barX + 5, barY + barH - Math.max(3, Math.round(4 * s)), dateLabel, "#fff", dateSize, "start", 600);
     }
 
     rowTop += rowHeight;
@@ -469,9 +492,10 @@ function measureTaskRowHeight(
   groupSize,
   nameLineStep,
   groupLineStep,
-  nameGroupGap
+  nameGroupGap,
+  nameTopPad = 4
 ) {
-  const nameBaseline0 = 4 + nameSize;
+  const nameBaseline0 = nameTopPad + nameSize;
   let lastBaseline = nameBaseline0 + (nameLineCount - 1) * nameLineStep;
   let textBottomBelowRowTop;
   if (showGroupLabels && groupLineCount > 0) {
