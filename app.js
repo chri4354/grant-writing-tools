@@ -30,6 +30,8 @@ const EXPORT_A4_LONG = 3508;
 const DEFAULT_TABLE_SHADE_1 = "#fffdf8";
 const DEFAULT_TABLE_SHADE_2 = "#f8f5ef";
 
+let _measureCanvas = null;
+
 const input = document.getElementById("timelineInput");
 const pageOrientation = document.getElementById("pageOrientation");
 const showGroupsCheckbox = document.getElementById("showGroups");
@@ -398,7 +400,6 @@ function appendTextLines(parent, x, firstBaselineY, lines, color, size, weight, 
   return textEl;
 }
 
-let _measureCanvas;
 function measureTextWidthPx(text, fontSize, fontWeight) {
   if (!_measureCanvas) {
     _measureCanvas = document.createElement("canvas");
