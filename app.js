@@ -314,10 +314,12 @@ function buildMonthTicks(minDate, maxDate) {
 }
 
 function formatMonth(date, compact = false) {
+  const month = date.toLocaleDateString(undefined, { month: "short" });
   if (compact) {
-    return date.toLocaleDateString(undefined, { month: "short" });
+    return month;
   }
-  return date.toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+  const yy = String(date.getFullYear()).slice(-2);
+  return `${month} '${yy}`;
 }
 
 function formatShortDate(date) {
