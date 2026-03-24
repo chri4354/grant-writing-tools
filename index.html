@@ -27,6 +27,17 @@
             <input type="checkbox" id="showGroups" checked />
             <span>Groups</span>
           </label>
+          <div class="control-shades" role="group" aria-label="Alternating row background colors">
+            <span class="control-inline-label">Rows</span>
+            <label class="shade-field" for="tableHex1">
+              <input type="color" id="tableColor1" value="#fffdf8" title="Pick shade A" aria-label="Row shade A (picker)" />
+              <input type="text" id="tableHex1" class="hex-input" maxlength="9" spellcheck="false" inputmode="text" aria-label="Row shade A hex" />
+            </label>
+            <label class="shade-field" for="tableHex2">
+              <input type="color" id="tableColor2" value="#f8f5ef" title="Pick shade B" aria-label="Row shade B (picker)" />
+              <input type="text" id="tableHex2" class="hex-input" maxlength="9" spellcheck="false" inputmode="text" aria-label="Row shade B hex" />
+            </label>
+          </div>
           <button id="renderButton" type="button">Render Chart</button>
           <button id="exampleButton" type="button" class="ghost">Load Example</button>
           <button id="copyButton" type="button" class="ghost">Copy Image</button>

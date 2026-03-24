@@ -27,9 +27,16 @@ const A4_LONG_PX = 1123;
 const EXPORT_A4_SHORT = 2480;
 const EXPORT_A4_LONG = 3508;
 
+const DEFAULT_TABLE_SHADE_1 = "#fffdf8";
+const DEFAULT_TABLE_SHADE_2 = "#f8f5ef";
+
 const input = document.getElementById("timelineInput");
 const pageOrientation = document.getElementById("pageOrientation");
 const showGroupsCheckbox = document.getElementById("showGroups");
+const tableHex1 = document.getElementById("tableHex1");
+const tableHex2 = document.getElementById("tableHex2");
+const tableColor1 = document.getElementById("tableColor1");
+const tableColor2 = document.getElementById("tableColor2");
 const renderButton = document.getElementById("renderButton");
 const exampleButton = document.getElementById("exampleButton");
 const copyButton = document.getElementById("copyButton");
@@ -38,11 +45,46 @@ const statusMessage = document.getElementById("statusMessage");
 const chartHost = document.getElementById("chartHost");
 
 input.value = DEFAULT_INPUT;
+tableHex1.value = DEFAULT_TABLE_SHADE_1;
+tableHex2.value = DEFAULT_TABLE_SHADE_2;
+tableColor1.value = DEFAULT_TABLE_SHADE_1;
+tableColor2.value = DEFAULT_TABLE_SHADE_2;
 renderChartFromInput();
+
+function syncTableColorFromHex(which) {
+  const hexEl = which === 1 ? tableHex1 : tableHex2;
+  const pickEl = which === 1 ? tableColor1 : tableColor2;
+  const n = normalizeHex(hexEl.value);
+  if (n) {
+    pickEl.value = n;
+  }
+}
+
+function syncTableHexFromColor(which) {
+  const hexEl = which === 1 ? tableHex1 : tableHex2;
+  const pickEl = which === 1 ? tableColor1 : tableColor2;
+  hexEl.value = pickEl.value;
+}
 
 renderButton.addEventListener("click", renderChartFromInput);
 pageOrientation.addEventListener("change", renderChartFromInput);
 showGroupsCheckbox.addEventListener("change", renderChartFromInput);
+tableHex1.addEventListener("input", () => {
+  syncTableColorFromHex(1);
+  renderChartFromInput();
+});
+tableHex2.addEventListener("input", () => {
+  syncTableColorFromHex(2);
+  renderChartFromInput();
+});
+tableColor1.addEventListener("input", () => {
+  syncTableHexFromColor(1);
+  renderChartFromInput();
+});
+tableColor2.addEventListener("input", () => {
+  syncTableHexFromColor(2);
+  renderChartFromInput();
+});
 exampleButton.addEventListener("click", () => {
   input.value = DEFAULT_INPUT;
   renderChartFromInput();
@@ -105,6 +147,35 @@ function parseDate(value, line, label) {
   return date;
 }
 
+function normalizeHex(raw) {
+  if (raw == null || typeof raw !== "string") {
+    return null;
+  }
+  let s = raw.trim();
+  if (s === "") {
+    return null;
+  }
+  if (s[0] === "#") {
+    s = s.slice(1);
+  }
+  if (s.length === 3 && /^[0-9a-f]{3}$/i.test(s)) {
+    s = s
+      .split("")
+      .map((c) => c + c)
+      .join("");
+  }
+  if (!/^[0-9a-f]{6}$/i.test(s)) {
+    return null;
+  }
+  return `#${s.toLowerCase()}`;
+}
+
+function getTableShades() {
+  const a = normalizeHex(tableHex1.value);
+  const b = normalizeHex(tableHex2.value);
+  return [a || DEFAULT_TABLE_SHADE_1, b || DEFAULT_TABLE_SHADE_2];
+}
+
 function getPageLayout() {
   const landscape = pageOrientation.value === "landscape";
   if (landscape) {
@@ -128,7 +199,7 @@ function getPageLayout() {
 function renderChartFromInput() {
   try {
     const tasks = parseTimeline(input.value);
-    const svg = buildGanttSVG(tasks, getPageLayout(), showGroupsCheckbox.checked);
+    const svg = buildGanttSVG(tasks, getPageLayout(), showGroupsCheckbox.checked, getTableShades());
     chartHost.replaceChildren(svg);
     setStatus(`Click the chart (or Copy Image) to copy.`);
   } catch (err) {
@@ -136,7 +207,8 @@ function renderChartFromInput() {
   }
 }
 
-function buildGanttSVG(tasks, layout, showGroupLabels) {
+function buildGanttSVG(tasks, layout, showGroupLabels, tableShades) {
+  const [shadeA, shadeB] = tableShades;
   const { pageWidth } = layout;
   const dayMs = 24 * 60 * 60 * 1000;
   const labelWidth = 360;
@@ -206,18 +278,7 @@ function buildGanttSVG(tasks, layout, showGroupLabels) {
     showGroupLabels ? "Generated Gantt chart" : "Generated Gantt chart without group labels"
   );
 
-  const defs = document.createElementNS(ns, "defs");
-  const bgGrad = document.createElementNS(ns, "linearGradient");
-  bgGrad.setAttribute("id", "bg");
-  bgGrad.setAttribute("x1", "0%");
-  bgGrad.setAttribute("x2", "100%");
-  bgGrad.setAttribute("y1", "0%");
-  bgGrad.setAttribute("y2", "0%");
-  bgGrad.innerHTML = '<stop offset="0%" stop-color="#fffdf8" /><stop offset="100%" stop-color="#f8f5ef" />';
-  defs.appendChild(bgGrad);
-  svg.appendChild(defs);
-
-  appendRect(svg, 0, 0, width, height, "url(#bg)");
+  appendRect(svg, 0, 0, width, height, shadeA);
   appendText(svg, 12, titleY, "Project Gantt Chart", "#1f1d1a", titleSize, "start", 700);
 
   const ticks = buildMonthTicks(minDate, maxDate);
@@ -236,7 +297,7 @@ function buildGanttSVG(tasks, layout, showGroupLabels) {
   tasks.forEach((task, index) => {
     const { nameLines, groupLines, rowHeight } = rowLayouts[index];
     if (index % 2 === 0) {
-      appendRect(svg, 0, rowTop, width, rowHeight, "rgba(245, 239, 231, 0.46)");
+      appendRect(svg, 0, rowTop, width, rowHeight, shadeB);
     }
 
     const nameBaseline0 = rowTop + 4 + nameSize;
