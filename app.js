@@ -314,7 +314,7 @@ function buildGanttSVG(tasks, layout, showGroupLabels, tableShades, fontScale = 
     bandTop += rowHeight;
   });
 
-  appendText(svg, 12, titleY, "Project Gantt Chart", "#1f1d1a", titleSize, "start", 700);
+  appendText(svg, 12, titleY, "Project Timeline", "#1f1d1a", titleSize, "start", 700);
 
   const ticks = buildMonthTicks(minDate, maxDate);
   ticks.forEach((tick) => {
